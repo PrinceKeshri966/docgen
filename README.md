@@ -172,7 +172,7 @@ Response:
 
 ---
 
-## What I'd Build Next (with 2 more weeks)
+## What I'd Build Next
 
 1. **Brand injection** — Upload a logo + hex colour and have it injected into every template
 2. **File upload context** — Attach a CRM export CSV and auto-populate proposal fields
