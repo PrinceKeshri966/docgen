@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DocGen — AI Document Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0D1117;
+  --surface:   #161B22;
+  --surface2:  #1C2333;
+  --border:    #30363D;
+  --accent:    #2563EB;
+  --accent-glow: rgba(37,99,235,0.18);
+  --accent-lt: #3B82F6;
+  --muted:     #8B949E;
+  --text:      #E6EDF3;
+  --text-dim:  #C9D1D9;
+  --green:     #3FB950;
+  --font:      'DM Sans', sans-serif;
+  --mono:      'DM Mono', monospace;
+  --r:         12px;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Top Bar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px;
+  height: 58px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 600; letter-spacing: -.2px;
+}
+.logo-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.topbar-right {
+  display: flex; align-items: center; gap: 8px;
+}
+.badge {
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 500; font-family: var(--mono);
+  background: var(--accent-glow); color: var(--accent-lt);
+  border: 1px solid rgba(37,99,235,.3);
+}
+
+/* ── Main Layout ── */
+.main {
+  display: flex; flex: 1; overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 260px; background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 20px 0;
+  flex-shrink: 0;
+}
+.sidebar-section { padding: 0 16px; margin-bottom: 20px; }
+.sidebar-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--muted); margin-bottom: 10px;
+}
+.template-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  font-size: 13px; color: var(--text-dim); cursor: pointer;
+  transition: background .15s;
+  border: none; background: transparent; width: 100%; text-align: left;
+}
+.template-chip:hover { background: var(--surface2); }
+.template-chip .tc-icon {
+  width: 26px; height: 26px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+.tc-pdf  { background: rgba(239,68,68,.15); color: #F87171; }
+.tc-ppt  { background: rgba(249,115,22,.15); color: #FB923C; }
+.tc-form { background: rgba(34,197,94,.15); color: #4ADE80; }
+.tc-label { line-height: 1.2; }
+.tc-sub { font-size: 10px; color: var(--muted); }
+
+/* ── Chat Area ── */
+.chat-area {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+.messages {
+  flex: 1; overflow-y: auto; padding: 28px 32px;
+  display: flex; flex-direction: column; gap: 20px;
+  scroll-behavior: smooth;
+}
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-track { background: transparent; }
+.messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* Welcome state */
+.welcome {
+  margin: auto;
+  text-align: center;
+  max-width: 520px;
+  padding: 40px 20px;
+}
+.welcome h1 {
+  font-size: 28px; font-weight: 600; margin-bottom: 10px;
+  background: linear-gradient(135deg, var(--text) 0%, var(--muted) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.welcome p { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+.example-prompts { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.ex-prompt {
+  padding: 11px 16px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 13px; color: var(--text-dim); cursor: pointer;
+  transition: border-color .15s, background .15s;
+  font-family: var(--font);
+}
+.ex-prompt:hover { border-color: var(--accent); background: var(--accent-glow); color: var(--text); }
+
+/* Bubble */
+.bubble-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  animation: fadeUp .25s ease;
+}
+.bubble-row.user { flex-direction: row-reverse; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.avatar {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; flex-shrink: 0;
+}
+.av-user { background: var(--accent); color: #fff; font-weight: 600; }
+.av-bot  { background: var(--surface2); border: 1px solid var(--border); }
+
+.bubble {
+  max-width: 68%; padding: 12px 16px; border-radius: 14px;
+  font-size: 14px; line-height: 1.65;
+}
+.bubble.user {
+  background: var(--accent);
+  color: #fff; border-radius: 14px 4px 14px 14px;
+}
+.bubble.bot {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 4px 14px 14px 14px;
+}
+
+/* Download card */
+.dl-card {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+  background: var(--surface);
+}
+.dl-card-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.dl-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.dl-icon.pdf  { background: rgba(239,68,68,.15); }
+.dl-icon.pptx { background: rgba(249,115,22,.15); }
+.dl-meta { flex: 1; }
+.dl-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.dl-type { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.dl-btn {
+  padding: 7px 14px; border-radius: 8px;
+  background: var(--accent); color: #fff;
+  border: none; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--font);
+  text-decoration: none; display: inline-block;
+  transition: background .15s;
+}
+.dl-btn:hover { background: var(--accent-lt); }
+.dl-card-footer {
+  padding: 8px 16px; font-size: 11px; color: var(--muted); font-family: var(--mono);
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex; gap: 4px; padding: 14px 16px; align-items: center;
+}
+.typing-indicator span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  animation: bounce 1.2s infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: .2s; }
+.typing-indicator span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce {
+  0%,80%,100% { transform: scale(.7); opacity:.4; }
+  40% { transform: scale(1); opacity:1; }
+}
+
+/* ── Input Bar ── */
+.input-bar {
+  padding: 16px 32px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.input-wrap {
+  display: flex; gap: 10px; align-items: flex-end;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  transition: border-color .15s;
+}
+.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+textarea {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-family: var(--font); font-size: 14px;
+  resize: none; line-height: 1.6; max-height: 130px;
+  min-height: 22px;
+}
+textarea::placeholder { color: var(--muted); }
+.send-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--accent); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background .15s, transform .1s;
+}
+.send-btn:hover { background: var(--accent-lt); transform: scale(1.05); }
+.send-btn:disabled { background: var(--surface2); cursor: not-allowed; transform: none; }
+.send-btn svg { width: 15px; height: 15px; }
+
+.input-hint {
+  font-size: 11px; color: var(--muted); margin-top: 8px;
+  text-align: center;
+}
+
+/* ── Intent debug pill ── */
+.intent-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px;
+  background: var(--bg); border: 1px solid var(--border);
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  margin-top: 6px;
+}
+.intent-pill b { color: var(--accent-lt); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">✦</div>
+    DocGen
+  </div>
+
+</div>
+
+<div class="main">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Templates</div>
+
+      <button class="template-chip" onclick="insertPrompt('Create a sales proposal PDF for Acme Corp for a HubSpot CRM build. Budget $40K. Kickoff Nov 15.')">
+        <div class="tc-icon tc-pdf">📄</div>
+        <div class="tc-label">Sales Proposal<br><span class="tc-sub">PDF · 4 pages</span></div>
+      </button>
+
+      <button class="template-chip" onclick="insertPrompt('Generate a project one-pager PDF for Wardell for a Salesforce migration. Timeline 6 weeks.')">
+        <div class="tc-icon tc-pdf">📋</div>
+        <div class="tc-label">Project One-Pager<br><span class="tc-sub">PDF · 1 page</span></div>
+      </button>
+
+      <button class="template-chip" onclick="insertPrompt('Generate a discovery call brief PPT for our meeting with Wardell tomorrow.')">
+        <div class="tc-icon tc-ppt">📊</div>
+        <div class="tc-label">Discovery Call Brief<br><span class="tc-sub">PPT · 5 slides</span></div>
+      </button>
+
+      <button class="template-chip" onclick="insertPrompt('Make a fillable onboarding form for new Wardell sales reps. Fields for name, role, start date, manager.')">
+        <div class="tc-icon tc-form">📝</div>
+        <div class="tc-label">Onboarding Form<br><span class="tc-sub">Fillable PDF</span></div>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Tips</div>
+      <p style="font-size:12px; color:var(--muted); line-height:1.7;">
+        Mention client name, budget, dates and project details for richer documents.
+        <br><br>
+        Say <em style="color:var(--text-dim)">"change the budget to $60K and regenerate"</em> to refine.
+      </p>
+    </div>
+  </aside>
+
+  <!-- Chat -->
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <!-- Welcome -->
+      <div class="welcome" id="welcome">
+        <h1>Generate any business doc<br>from a single sentence.</h1>
+        <p>Type what you need — a sales proposal, discovery call deck, or fillable onboarding form — and get a download-ready file in seconds.</p>
+        <div class="example-prompts">
+          <button class="ex-prompt" onclick="insertPrompt(this.textContent.trim())">
+            Create a sales proposal PDF for Acme Corp for a HubSpot CRM build. Budget $40K. Kickoff Nov 15.
+          </button>
+          <button class="ex-prompt" onclick="insertPrompt(this.textContent.trim())">
+            Generate a discovery call brief PPT for our meeting with Wardell tomorrow.
+          </button>
+          <button class="ex-prompt" onclick="insertPrompt(this.textContent.trim())">
+            Make a fillable onboarding form for new Wardell sales reps. Fields for name, role, start date, manager.
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <textarea id="input" rows="1" placeholder="Describe the document you need…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const inputEl    = document.getElementById('input');
+const sendBtn    = document.getElementById('sendBtn');
+let history = [];
+let isLoading = false;
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 130) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function insertPrompt(text) {
+  inputEl.value = text;
+  autoResize(inputEl);
+  inputEl.focus();
+}
+
+function hideWelcome() {
+  const w = document.getElementById('welcome');
+  if (w) w.remove();
+}
+
+function addBubble(role, html, downloadData) {
+  const row = document.createElement('div');
+  row.className = `bubble-row ${role}`;
+
+  const av = document.createElement('div');
+  av.className = `avatar av-${role}`;
+  av.textContent = role === 'user' ? 'P' : '✦';
+
+  const bubble = document.createElement('div');
+  bubble.className = `bubble ${role}`;
+  bubble.innerHTML = renderMarkdown(html);
+
+  if (downloadData) {
+    const ext = downloadData.doc_type;
+    const isP = ext === 'pptx';
+    const card = document.createElement('div');
+    card.className = 'dl-card';
+    card.innerHTML = `
+      <div class="dl-card-header">
+        <div class="dl-icon ${ext}">${isP ? '📊' : '📄'}</div>
+        <div class="dl-meta">
+          <div class="dl-name">${downloadData.template}</div>
+          <div class="dl-type">${downloadData.filename}</div>
+        </div>
+        <a class="dl-btn" href="${downloadData.download_url}" download="${downloadData.filename}">
+          ↓ Download
+        </a>
+      </div>
+      <div class="dl-card-footer">
+        intent: <b>${downloadData.intent?.template || '—'}</b> · 
+        client: <b>${downloadData.intent?.client_name || '—'}</b>
+      </div>`;
+    bubble.appendChild(card);
+  }
+
+  row.appendChild(av);
+  row.appendChild(bubble);
+  messagesEl.appendChild(row);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return row;
+}
+
+function addTyping() {
+  const row = document.createElement('div');
+  row.className = 'bubble-row bot';
+  row.id = 'typing';
+  row.innerHTML = `
+    <div class="avatar av-bot">✦</div>
+    <div class="bubble bot">
+      <div class="typing-indicator">
+        <span></span><span></span><span></span>
+      </div>
+    </div>`;
+  messagesEl.appendChild(row);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+function renderMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>');
+}
+
+async function sendMessage() {
+  const msg = inputEl.value.trim();
+  if (!msg || isLoading) return;
+
+  hideWelcome();
+  isLoading = true;
+  sendBtn.disabled = true;
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  addBubble('user', msg);
+  addTyping();
+
+  history.push({ role: 'user', content: msg });
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: history.slice(0,-1) })
+    });
+
+    const data = await res.json();
+    removeTyping();
+
+    if (!res.ok) {
+      addBubble('bot', `❌ Error: ${data.detail || 'Something went wrong.'}`);
+    } else {
+      addBubble('bot', data.reply, {
+        download_url: data.download_url,
+        filename:     data.filename,
+        doc_type:     data.doc_type,
+        template:     data.template,
+        intent:       data.intent,
+      });
+      history.push({ role: 'model', content: data.reply });
+    }
+  } catch (err) {
+    removeTyping();
+    addBubble('bot', `❌ Network error: ${err.message}`);
+  } finally {
+    isLoading = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+}
+</script>
+</body>
+</html>
